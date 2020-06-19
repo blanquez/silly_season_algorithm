@@ -1,0 +1,47 @@
+\documentclass{article}
+\usepackage{indentfirst}
+
+\title{\textbf{Silly Season Algorithm. Diseño e implementación de una metaheurística original}}
+\author{Antonio José Blánquez Pérez}
+\date{Práctica final Metaheurísticas - Universidad de Granada}
+
+\begin{document}
+	\setlength{\parskip}{1em}
+	\maketitle
+	
+	\section{Proposición}
+	\subsection{Motivación}
+	\indent El concepto de esta metaheurística nace cuando, en medio de la cuarentena, la temporada 2020 de Formula 1 se está desarrollando de manera anómala. Esta comenzará en julio y no en marzo como es habitual\footnote{https://www.formula1.com/en/latest/article.f1-schedule-2020-latest-information.3P0b3hJYdFDm9xFieAYqCS.html}, provocando que la temporada dure hasta noviembre ininterrumpidamente también durante el mes de agosto(lo que nos dejará ver un Gran Premio de España el 16 de agosto, que se correrá a una temperatura poco convencional), se cancela el Gran Premio de Mónaco por primera vez desde 1955 y, lo que nos ocupa en este caso, debido al cambio en el calendario y a que en este deporte no existe un mercado de fichajes con fechas establecidas como, por ejemplo, en el fútbol, los equipos están dedicando su tiempo a cerrar fichajes para 2021, año en el que la mayoría de pilotos acaba contrato al ser fecha de cambio en el reglamento(aunque se ha retrasado a 2022). El término $Silly\ Season$, que da nombre a la metaheurística, se acuñó para definir el tiempo, generalmente los meses de verano, en el que a falta de noticias los medios de comunicación comienzan a hablar sobre rumores y, en el contexto del deporte, rumores sobre fichajes; aunque este término es ampliamente usado para referirse al período de fichajes que suele darse en los parones de verano e invierno. Aunque en el momento en el que se escriben estas líneas aún no es verano y deberíamos de estar a la espera del GP de Francia, la realidad es que esta temporada aún no ha comenzado y se ha desarrollado una Silly Season como no se recuerda en años\footnote{https://www.motorpasion.com/formula1/cascada-fichajes-formula-1-daniel-ricciardo-confirmado-como-sustituto-carlos-sainz-mclaren}.
+	\par
+	De esta situación surgió la idea de plantear una metaheurística basada en la ya comentada Silly Season, donde los pilotos serán individuos soluciones al problema que se organizarán en equipos o conjuntos que determinarán el trato que se le dará a cada individuo.
+	
+	\subsection{Resumen}
+	\indent El funcionamiento de esta metaheurística se basa en unos elementos bien definidos, las soluciones, que serán nuestros pilotos, se generarán y organizarán en equipos inicialmente de manera aleatoria, y se les asignará una puntuación a través de la función objetivo. Los equipos cuyos pilotos tengan mejor puntuación serán los que estén en la zona alta de la tabla y viceversa. Como los equipos de la parte alta tienen más dinero no pueden arriesgarse a cambios relevantes en su organización, por lo que generalmente se centrarán en mejorar al máximo el rendimiento de su coche(y por tanto el de su piloto). Por otra parte los equipos de la parte, puesto que no tienen nada que perder, tienden a realizar grandes cambios tanto en su organización como en su plantilla. Es decir, en los equipos con mayor puntuación los pilotos evolucionarán mediante explotación y los que tengan una puntuación más baja lo harán mediante exploración. Además, tras un cierto período(la temporada o época) los pilotos cambiarán de equipo según su rendimiento, aunque también habrá una posibilidad de que lo hagan entre temporadas si su rendimiento está desproporcionado con el de su equipo.
+	\par
+	Este concepto se puede plantear como una buena metaheurística en la medida en la que se consigue equilibrar la exploración y la explotación, equilibrio que podría proporcionar una buena solución. Esto es porque intentaremos conseguir que las soluciones sean buenas mediante explotación en el caso de las que sean ya buenas en los que hemos definido como los mejores equipos y evitaremos óptimos locales mediante la exploración en el entorno de los peores equipos, ya que con ellos terminaremos consiguiendo soluciones potencialmente buenas.
+	
+	\section {Descripción detallada}
+	\subsection{Concepto}
+	
+	\subsection{Implementación}
+	
+	\section{Aplicación}
+	\subsection{Descripción del problema}
+	
+	\subsection{Definición de conceptos del problema}
+	
+	\subsection{Representación de la información}
+	
+	\subsection{Función objetivo}
+	
+	\subsection{Conjuntos de datos usados}
+	
+	\section{Manual de usuario}
+	
+	\section{Análisis de rendimiento}
+	\subsection{Descripción de los casos del problema}
+	
+	\subsection{Resultados obtenidos}
+	
+	\subsection{Análisis de resultados}
+\end{document}

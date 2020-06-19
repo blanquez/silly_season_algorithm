@@ -61,16 +61,16 @@ int calculate_infeasibility(vector<int> sol, vector<constraint> const_list)
     return infeasibility;
 }
 
-// General deviation computing
+// Standard deviation computing
 float calculate_desv(vector<vector<float>> *cl_set, vector<int> sol, int k)
 {
 
     vector<vector<float>> centroids; // Vector of centroids
-    vector<float> fl_v_aux;          // Float vector assistant
-    float fl_aux;                    // Float assistant
+    vector<float> fl_v_aux;          // Auxiliary float vector
+    float fl_aux;                    // Auxiliary float
     vector<float> cl_counter;        // Clusters entities counter
     vector<float> intracl_dist;      // Clusters mean intra-cluster distance values
-    float general_deviation = 0;     // General deviation value
+    float standard_deviation = 0;    // Standard deviation value
 
     // Centroids computing
 
@@ -107,19 +107,19 @@ float calculate_desv(vector<vector<float>> *cl_set, vector<int> sol, int k)
     for (int i = 0; i < k; i++)
         intracl_dist[i] /= cl_counter[i];
 
-    //General desviation computing
+    //Standard desviation computing
 
     for (int i = 0; i < k; i++)
-        general_deviation += intracl_dist[i];
+        standard_deviation += intracl_dist[i];
 
-    return general_deviation /= k;
+    return standard_deviation /= k;
 }
 
 // Lambda value computing
 float calculate_lambda(vector<vector<float>> *cl_set, int const_num)
 {
     float max_distance = 0; // Maximum distance between entities
-    float fl_aux;           // Float assistant
+    float fl_aux;           // Auxiliary float
 
     for (int i = 0; i < (*cl_set).size(); ++i)
     {
@@ -145,7 +145,7 @@ float calculate_f(vector<vector<float>> *cl_set, vector<int> sol, vector<constra
 {
     bool empty_condition = true; // True if there are no empty clusters, false otherwise
     int infeasibility;           // Infeasibility value
-    float general_deviation;     // General deviation value
+    float standard_deviation;    // Standard deviation value
 
     //Empty clusters control
 
@@ -167,25 +167,216 @@ float calculate_f(vector<vector<float>> *cl_set, vector<int> sol, vector<constra
 
     (*infeas) = infeasibility;
 
-    general_deviation = calculate_desv(cl_set, sol, k);
+    standard_deviation = calculate_desv(cl_set, sol, k);
 
-    (*deviation) = general_deviation;
+    (*deviation) = standard_deviation;
 
-    return (general_deviation + infeasibility * lambda);
+    return (standard_deviation + infeasibility * lambda);
 }
 
+// Silly season algorithm
 void silly_season(vector<vector<float>> *cl_set, vector<vector<int>> *cl_set_const, int k, int seed)
 {
-    time_t time1, time2;    // Time measure
-    float best_dev;         // Best general deviation
-    int best_inf;           // Best infeasibility
-    int best_f;             // Best cost value
+    time_t time1, time2;            // Time measure
+    float best_dev;                 // Best standard deviation
+    int best_inf;                   // Best infeasibility
+    float best_f;                   // Best cost value
+    int n_iters = 0;                // Number of evaluations
+    int current_season = 1;         // Current season
+    int last_season = 1;            // Last season
+    float current_f;                // Current f value
+    int current_inf;                // Current infeasibility
+    float current_dev;              // Current standard deviation
+    vector<vector<float>> f_matrix; // Each team f value
+    vector<float> team_hierarchy;   // Team hierarchy representation
+    float mean_f;                   // Cut-off point
 
+    ////// PARAMETERS /////
+    int n_teams = 3;           // Number of teams
+    int n_pilot_per_team = 2;  // Number of pilots per team
+    int season_lenght = 10000; // Season lenght in evaluations
+    ///////////////////////
+
+    vector<int> c;                     // Auxiliary vector of int
+    vector<float> cf;                  // Auxiliary vector of float
+    vector<vector<int>> t;             // Auxiliary vector of vector of int
+    vector<vector<vector<int>>> teams; // Teams set
+    float i_aux;                       // Auxiliary float
+    bool condition;                    // Empty clusters condition
     time1 = clock();
 
     srand(seed);
 
+    // Initialize teams randomly
+
+    for (int m = 0; m < n_teams; m++)
+    {
+        t.clear();
+        for (int j = 0; j < n_pilot_per_team; j++)
+        {
+            do
+            {
+                c.clear();
+                for (int i = 0; i < (*cl_set).size(); i++)
+                    c.push_back(rand() % k);
+                condition = count(c.begin(), c.end(), 0) == 0;
+                for (int i = 1; i < k && !condition; i++)
+                    condition || count(c.begin(), c.end(), i) == 0;
+            } while (condition);
+            t.push_back(c);
+        }
+        teams.push_back(t);
+    }
+
+    // Show teams
+
+    /*for(int i=0;i<teams.size();i++){
+        for(int j=0;j<n_pilot_per_team;j++){
+            for(int m=0;m<c.size();m++){
+                cout << teams[i][j][m] << " ";
+            }
+            cout << endl;
+        }
+        cout << endl;
+    }*/
+
+    // Common values computing
+
+    vector<constraint> const_list = calculate_const_list(cl_set_const);
+    float lambda = calculate_lambda(cl_set, const_list.size());
+
+    // Initialize best values
+
+    best_f = calculate_f(cl_set, teams[0][0], const_list, k, lambda, &best_dev, &best_inf);
+    n_iters++;
+
+    f_matrix.clear();
+    for (int i = 0; i < n_teams; i++)
+    {
+        cf.clear();
+        for (int j = 0; j < n_pilot_per_team; j++)
+        {
+            current_f = calculate_f(cl_set, teams[i][j], const_list, k, lambda, &current_dev, &current_inf);
+            n_iters++;
+            if (current_f < best_f)
+            {
+                best_f = current_f;
+                best_inf = current_inf;
+                best_dev = current_dev;
+            }
+            cf.push_back(current_f);
+        }
+        f_matrix.push_back(cf);
+    }
+
+    // Initialize teams hierarchy
+
+    mean_f = 0;
+    team_hierarchy.clear();
+    for (int i = 0; i < n_teams; i++)
+    {
+        i_aux = 0;
+        for (int j = 0; j < n_pilot_per_team; j++)
+        {
+            i_aux += f_matrix[i][j];
+            mean_f += f_matrix[i][j];
+        }
+        team_hierarchy.push_back(i_aux / n_pilot_per_team);
+    }
+    mean_f = mean_f / (n_teams * n_pilot_per_team);
+
+    // Main loop
+
+    do
+    {
+
+        // Each team train its pilots according to its hierarchy
+
+        for (int i = 0; i < n_teams; i++)
+        {
+            if (team_hierarchy[i] > mean_f)
+            {
+                // Entonces es top, BL
+            }
+            else
+            {
+                // Si no, no es top, AG
+            }
+        }
+
+        // If start new season, pilots can change their team
+
+        if(n_iters > (current_season*season_lenght)) current_season++;
+
+        if (current_season > last_season)
+        {
+            // Entonces cambian los equipos según puntuacion
+        }
+        else
+        {
+            // Si no, hay alguna probabilidad aleatoria
+        }
+
+        last_season = current_season;
+
+        // Fix best values and f-matrix
+
+        f_matrix.clear();
+        for (int i = 0; i < n_teams; i++)
+        {
+            cf.clear();
+            for (int j = 0; j < n_pilot_per_team; j++)
+            {
+                current_f = calculate_f(cl_set, teams[i][j], const_list, k, lambda, &current_dev, &current_inf);
+                n_iters++;
+                if (current_f < best_f)
+                {
+                    best_f = current_f;
+                    best_inf = current_inf;
+                    best_dev = current_dev;
+                }
+                cf.push_back(current_f);
+            }
+            f_matrix.push_back(cf);
+        }
+
+        // Fix teams hierarchy
+
+        mean_f = 0;
+        team_hierarchy.clear();
+        for (int i = 0; i < n_teams; i++)
+        {
+            i_aux = 0;
+            for (int j = 0; j < n_pilot_per_team; j++)
+            {
+                i_aux += f_matrix[i][j];
+                mean_f += f_matrix[i][j];
+            }
+            team_hierarchy.push_back(i_aux / n_pilot_per_team);
+        }
+        mean_f = mean_f / (n_teams * n_pilot_per_team);
+
+    } while (n_iters < 100000);
+
+    // Show f matrix
+
+    /*for(int i=0;i<n_teams;i++){
+        for(int j=0;j<n_pilot_per_team;j++){
+            cout << f_matrix[i][j] << " ";
+        }
+        cout << endl;
+    }*/
+
+    // Show hierarchy
+
+    /*for(int i=0;i<team_hierarchy.size();i++) cout << team_hierarchy[i] << " ";
+    cout << endl;
+
+    cout << mean_f << endl;*/
+
     time2 = clock();
+
+    // Output
 
     cout << best_dev << " ";
     cout << best_inf << " ";
@@ -200,7 +391,7 @@ int main(int argc, char *argv[])
 
     string data_path = "data/";  // Database file path
     string const_path = "data/"; // Constraints file path
-    string string_aux;           // String assistant
+    string string_aux;           // Auxiliary string
     int k;                       // Number of clusters
     int seed;                    // Random seed
 
@@ -303,7 +494,7 @@ int main(int argc, char *argv[])
 
     // Silly season algorithm aplication
 
-    silly_season(&cl_set,&cl_set_const,k,seed);
+    silly_season(&cl_set, &cl_set_const, k, seed);
 
     return 0;
 }
