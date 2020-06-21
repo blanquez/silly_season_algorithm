@@ -1,3 +1,10 @@
+//////////////////////////////////////////////////////////////////////////////////
+//  SILLY SEASON ALGORITHM implementation to constrained clustering problem     //
+//                                                                              //
+//  Antonio José Blánquez Pérez - 3ºCSI                                         //
+//  FINAL PRACTICE - METAHEURÍSTICAS - University of Granada                    //
+//////////////////////////////////////////////////////////////////////////////////
+
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -177,6 +184,17 @@ float calculate_f(vector<vector<float>> *cl_set, vector<int> sol, vector<constra
 // Silly season algorithm
 void silly_season(vector<vector<float>> *cl_set, vector<vector<int>> *cl_set_const, int k, int seed)
 {
+    ////// PARAMETERS ////////////////////////////////////////////////////////////////////////////
+    int n_teams = 5;                     // Number of teams
+    int n_pilot_per_team = 2;            // Number of pilots per team
+    int season_lenght = 10000;           // Season lenght in evaluations
+    int max_iters = 100000;              // Maximum number of evaluations
+    int max_iters_bl = 1000;             // Maximum number of evaluations for BL
+    int prob_mutation = 1050;            // Mutation probability
+    int n_team_changes_silly_season = 4; // Number of team changes between seasons
+    int n_team_changes_mid_season = 1;   // Number of team changes during a season
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
     time_t time1, time2;            // Time measure
     float best_dev;                 // Best standard deviation
     int best_inf;                   // Best infeasibility
@@ -191,11 +209,16 @@ void silly_season(vector<vector<float>> *cl_set, vector<vector<int>> *cl_set_con
     vector<float> team_hierarchy;   // Team hierarchy representation
     float mean_f;                   // Cut-off point
 
-    ////// PARAMETERS /////
-    int n_teams = 3;           // Number of teams
-    int n_pilot_per_team = 2;  // Number of pilots per team
-    int season_lenght = 10000; // Season lenght in evaluations
-    ///////////////////////
+    float f_act;                    // Actual cost function value for BL
+    float f_ini;                    // Best cost function value for BL
+    int bl_counter;                 // BL evaluations counter
+    vector<vector<int>> neighbours; // Neighbours vector for BL
+
+    int n_mutations = 0; // Number of mutations
+    int ind, val;        // Auxiliary variables for mutations
+
+    int n_team_changes;         // Number of team changes
+    int ind1, val1, ind2, val2; // Auxiliary variables for team changes
 
     vector<int> c;                     // Auxiliary vector of int
     vector<float> cf;                  // Auxiliary vector of float
@@ -289,37 +312,92 @@ void silly_season(vector<vector<float>> *cl_set, vector<vector<int>> *cl_set_con
 
     do
     {
-
         // Each team train its pilots according to its hierarchy
 
         for (int i = 0; i < n_teams; i++)
         {
-            if (team_hierarchy[i] > mean_f)
+            if (team_hierarchy[i] > mean_f) // BL
             {
-                // Entonces es top, BL
+                for (int j = 0; j < n_pilot_per_team; j++)
+                {
+                    bl_counter = 1;
+                    f_act = calculate_f(cl_set, teams[i][j], const_list, k, lambda, &current_dev, &current_inf);
+                    n_iters++;
+                    do
+                    {
+                        f_ini = f_act;
+
+                        // Neighborhood creation
+                        for (int m = 0; m < teams[i][j].size(); m++)
+                        {
+                            for (int o = 1; o < k; o++)
+                            {
+                                c.clear();
+                                c.push_back(m);
+                                c.push_back((c[m] + o) % k);
+                                neighbours.push_back(c);
+                            }
+                        }
+
+                        random_shuffle(neighbours.begin(), neighbours.end());
+
+                        // Neighborhood exploration
+                        for (int m = 0; m < neighbours.size() && f_act >= f_ini; m++)
+                        {
+                            c = teams[i][j];
+                            c[neighbours[m][0]] = neighbours[m][1];
+                            f_act = calculate_f(cl_set, c, const_list, k, lambda, &current_dev, &current_inf);
+                            bl_counter++;
+                            n_iters++;
+                        }
+
+                        if (f_act < f_ini)
+                            teams[i][j] = c;
+
+                    } while (f_act < f_ini && bl_counter < max_iters_bl);
+                }
             }
-            else
+            else // Mutation
             {
-                // Si no, no es top, AG
+                for (int j = 0; j < n_pilot_per_team; j++)
+                {
+                    n_mutations += teams[i].size() * teams[i][j].size();
+                    if (n_mutations >= prob_mutation)
+                    {
+                        n_mutations = n_mutations % prob_mutation;
+                        ind = rand() % teams[i].size();
+                        val = rand() % teams[i][j].size();
+                        teams[i][ind][val] = (teams[i][ind][val] + rand() % (k - 1) + 1) % k;
+                    }
+                }
             }
         }
 
         // If start new season, pilots can change their team
 
-        if(n_iters > (current_season*season_lenght)) current_season++;
+        if (n_iters > (current_season * season_lenght))
+            current_season++;
 
         if (current_season > last_season)
-        {
-            // Entonces cambian los equipos según puntuacion
-        }
+            n_team_changes = n_team_changes_silly_season;
         else
+            n_team_changes = n_team_changes_mid_season;
+
+        for (int i = 0; i < n_team_changes; i++)
         {
-            // Si no, hay alguna probabilidad aleatoria
+            ind1 = rand() % teams.size();
+            val1 = rand() % teams[0].size();
+            ind2 = rand() % teams.size();
+            val2 = rand() % teams[0].size();
+            c = teams[ind1][val1];
+            teams[ind1][val1] = teams[ind2][val2];
+            teams[ind2][val2] = c;
         }
 
         last_season = current_season;
 
         // Fix best values and f-matrix
+        // Se puede intentar introducir en train para optimizar
 
         f_matrix.clear();
         for (int i = 0; i < n_teams; i++)
@@ -356,7 +434,7 @@ void silly_season(vector<vector<float>> *cl_set, vector<vector<int>> *cl_set_con
         }
         mean_f = mean_f / (n_teams * n_pilot_per_team);
 
-    } while (n_iters < 100000);
+    } while (n_iters <= max_iters);
 
     // Show f matrix
 

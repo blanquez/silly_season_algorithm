@@ -1,7 +1,10 @@
 \documentclass{article}
 \usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\providecommand{\abs}[1]{\lvert#1\rvert}
 
-\title{\textbf{Silly Season Algorithm. Diseño e implementación de una metaheurística original}}
+\title{\textbf{Silly Season Algorithm. Diseño e implementación de una metaheurística}}
 \author{Antonio José Blánquez Pérez}
 \date{Práctica final Metaheurísticas - Universidad de Granada}
 
@@ -27,16 +30,110 @@
 	
 	\section{Aplicación}
 	\subsection{Descripción del problema}
+	\indent El agrupamiento o clustering busca clasificar objetos de un conjunto en subconjuntos o clusters a
+	través de sus posibles similaridades. Es una técnica de aprendizaje no supervisado que permite
+	descubrir grupos inicialmente desconocidos o agrupar objetos similares, de manera que podemos
+	encontrar patrones en grandes grupos de datos que serían imposibles(o extremadamente difíciles) de
+	encontrar sin esta técnica.
+	\par
+	Un ejemplo cotidiano del problema del agrupamiento sería dividir una cantidad de frutas en verdes,
+	poco maduras y muy maduras que, aunque trivial, nos permite entender el concepto que hay detrás
+	de la técnica que nos ocupa. Con ésto podemos comprender otras aplicaciones del clustering, como
+	pueden ser el análisis de caracteres escritos a mano, muestras de diálogo, huellas dactilares o
+	imágenes, la clasificación de especies en subespecies o el agrupamiento para moléculas o proteínas.
+	Para poder aplicar esta técnica debemos medir $d$ características de nuestro grupo de $n$ objetos, por
+	ejemplo el color o la textura en el caso de las frutas o la simetría o la intensidad en el caso de
+	caracteres escritos a mano, obteniendo una conjunto de datos de longitud $n$ con $d$ dimensiones.
+	\par
+	En nuestro caso concreto abordaremos una variación del clustering clásico, el Problema de
+	Agrupamiento con Restricciones(PAR), es decir, además de nuestro conjunto de datos tenemos
+	cierta información a la que llamaremos restricciones o, más concretamente, restricciones de
+	instancia. Ésto quiere decir que tenemos alguna información sobre objetos que tienen que
+	pertenecer al mismo cluster(ML, Must-Link) y sobre objetos que no pertenecen al mismo
+	cluster(CL, Cannot-Link), siendo éstas restricciones débiles, o lo que es lo mismo, podemos
+	incumplir restricciones pero debemos minimizar el número de incumplidas al máximo.
+	El planteamiento combinatorio de este problema es NP-Completo, por tanto a continuación
+	propondremos algunas alternativas de algoritmos para intentar resolver el problema de forma
+	aproximada en un tiempo razonable. El problema se abordará con $k$(nº de clusters) conocida, ya que
+	su búsqueda es otro problema complejo.
 	
-	\subsection{Definición de conceptos del problema}
+	\subsection{Formalización de conceptos del problema}
+	Vamos a definir distintos conceptos que se nombrarán a lo largo del documento y que son
+	necesarios para entender los procedimientos en cada algoritmo.
+	Primeramente podemos formalizar la definición de nuestro conjunto de datos como una matriz $X$ de
+	$n\cdot d$, $n$ objetos en un espacio de $d$ dimensiones(el número de medidas que tenemos sobre cada
+	objeto).\par
+	{\centering $\vec{x_i} =\{x_{i,1},...,x_{i,d}\}\ \| \ \in \mathbb R\ \forall j\in \{1,...,d\}$\par}
+	Llamaremos $C=\{c_1,...,c_k\}$ al conjunto de los $k$ clusters, de manera que cada $c_i$ será un subconjunto
+	de $X$ y podrá asociada una etiqueta $l_i$ que lo nombre Para cada cluster es posible calcular su
+	centroide asociado $\vec{\mu_i} $ , siendo el vector promedio de sus instancias.\par
+	{\centering $\vec{\mu_i} = \frac{1}{\abs{c_i}} \displaystyle\sum_{\vec{\mu_j} \in c_i} \vec{x_j}$\par}
+	También debemos definir la distancia media intra-cluster, $c_i$ , como la media de las distancias
+	entre cada instancia del cluster y su centroide asociado, usando en este caso la distancia euclídea,
+	aunque es equivalente a usar, por ejemplo, la distancia Manhattan.\par
+	{\centering ${\overline{c_i}} = \frac{1}{\abs{c_i}} \displaystyle\sum_{\vec{\mu_j} \in c_i} \abs{\abs{\vec{x_j}-\vec{\mu_i}}} $\par}
+	A través de estas, podemos llegar a la desviación general de $C$, la media de las desviaciones intracluster,
+	que nos será de gran ayuda para minimizar la solución y para su posterior análisis.\par
+	{\centering ${\overline{C}} = \frac{1}{k} \displaystyle\sum_{c_i \in C} \overline{c_i}$\par}
+	Por otro lado tenemos las restricciones, $R=ML\cup CL$, donde $ML(\vec{x_i},\vec{x_j})$ indica que las
+	instancias $\vec{x_i}$ y $\vec{x_j}$ deben estar asignadas al mismo cluster y $CL(\vec{x_i},\vec{x_j})$ que las instancias
+	$\vec{x_i}$ y $\vec{x_j}$ no pueden ser asignadas al mismo cluster. Con ello, definimos la infactibilidad o
+	infeasibility, que es un indicador de las restricciones que incumple nuestra solución.\par
+	{\centering $infeasibility=\displaystyle\sum_{i=0}^{\abs{ML}}1(h_c(\vec{ML}_{[i,1]})\neq h_c(\vec{ML}_{[i,2]}))+\displaystyle\sum_{i=0}^{\abs{CL}}1(h_c(\vec{CL}_{[i,1]})=h_c(\vec{CL}_{[i,2]}))$\par}
+	Siendo 1 la función booleana que devolverá 1 si la expresión que toma como argumento es verdadera y 0 en otro caso.
 	
 	\subsection{Representación de la información}
+	Ahora que tenemos algunos conceptos claros y formalizados, pasamos a ver como representaremos
+	la información necesaria en el proceso de resolución del problema.
+	Primero aclarar que los datos de entrada, nuestro conjunto de datos, estará organizado en una matriz
+	implementada como un vector$<$vector$<$float$>>$ (ambos vectores de la librería STL), es decir, un
+	vector de longitud $n$ de vectores de reales en coma flotante de longitud $d$.
+	Para las restricciones usaremos dos formas de representación, una para facilitar el acceso cuando
+	conocemos la restricción que queremos comprobar y otra para cuando queramos recorrer todas las
+	restricciones. Para el primer caso se usará la misma representación que para el dataframe, mientras
+	que para el segundo se construirá una lista con elementos del tipo $[x,y,{1,-1}]$, siendo $x$ e $y$ los dos
+	elementos que tiene la restricción y el último elemento 1 si conforman una restricción ML y -1 si es
+	CL. Esta lista se ha implementado usando un vector$<$vector$<$int$>>$, también de la STL. De ésta
+	manera, al recorrer esa lista evadiremos todos los pares que no tienen una restricción y nuestra
+	búsqueda será mucho más eficiente que en una matriz.
+	Por último, representaremos la solución con un vector$<$int$>$ de longitud $n$, de manera que la
+	posición $i$ contendrá el número del cluster asignado al objeto $i$.
 	
 	\subsection{Función objetivo}
+	La función objetivo es la función que debemos minimizar, es decir, la función que dice como de
+	buena es la solución que le pasamos como parámetro.
+	De todas las definiciones que hemos hecho, desviación general($\overline{C}$) e infactibilidad(infeasibility)
+	nos dan información acerca de la bondad de la solución, la primera a través de la distancia promedio
+	de cada dato a su centroide correspondiente y la segunda a través de la medida del incumplimiento
+	de las restricciones de la solución dada. Ambas han de ser minimizadas, pero hay que darle más o
+	menos importancia a una y a otra, de manera que debemos introducir un parámetro con el que
+	controlar ésta importancia que debatiremos posteriormente.\par
+	{\centering $f = \overline{C}+infeasibility\cdot \lambda$\par}
+	Dicho ésto queda definir el parámetro $\lambda$, el cual se ha decidido proponer como el entero superior a
+	la distancia máxima $D$ dividida por el número de restricciones totales $R$.\par
+	{\centering $\lambda = \frac{\lceil D \rceil}{\abs{R}}$\par}
+	A continuación se expone la descripción en pseudocódigo de todos los operadores y de la función
+	objetivo.
 	
 	\subsection{Conjuntos de datos usados}
+	Los conjuntos de datos usados para testear la bondad de los algoritmos son los siguientes:
+	\begin{itemize}
+		\item Iris: Contiene información sobre las características de tres tipos de flores de Iris. Tiene 3
+		clases(k=3) y 6 dimensiones.
+		\item Ecoli: Contiene medidas sobre las ciertas características de diferentes tipos de células que
+		pueden ser empleadas para predecir la localización de ciertas proteínas. Tiene 8 clases(k=8)
+		y 7 dimesiones.
+		\item Rand: Conjunto de datos artificial formado por tres agrupamientos bien diferenciados
+		generados en base a distribuciones normales. Tiene 3 clases(k=3) y 2 dimensiones.
+		\item Newthyroid: Contiene medidas cuantitativas tomadas sobre la glándula tiroides de 215
+		pacientes. Tiene 3 clases(k=3) y 5 dimensiones.
+	\end{itemize}
 	
 	\section{Manual de usuario}
+	\textbf{Compilación:} Se incluye un makefile, por lo que se compila tan solo ejecutando la orden ‘make’ desde la terminal en la carpeta que contiene el código.\par
+	\textbf{Ejecución:} Para ejecutar el algoritmo sobre un conjunto de datos concreto se hará mediante la siguiente orden en la terminal.\par
+	{\centering ./silly\_season $<$fichero\_datos$>$ $<$fichero\_restricciones$>$ $<k>$ $<$seed$>$\par}
+	También es posible llamarlo sin argumentos, entonces pedirá por teclado la información necesaria, o usar el script incluído, que replicará todos el experimento realizado para el análisis de rendimiento.
 	
 	\section{Análisis de rendimiento}
 	\subsection{Descripción de los casos del problema}
@@ -44,4 +141,6 @@
 	\subsection{Resultados obtenidos}
 	
 	\subsection{Análisis de resultados}
+	
+	\subsection{Posibles mejoras}
 \end{document}
