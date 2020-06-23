@@ -2,9 +2,15 @@
 \usepackage{indentfirst}
 \usepackage{amsmath}
 \usepackage{amsfonts}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{vmargin}
+\usepackage{multirow}
+\usepackage{graphicx}
 \providecommand{\abs}[1]{\lvert#1\rvert}
+\setpapersize{A4}
 
-\title{\textbf{Silly Season Algorithm. Diseño e implementación de una metaheurística}}
+\title{\textbf{Silly Season Algorithm. Diseño e implementación de una metaheurística original}}
 \author{Antonio José Blánquez Pérez}
 \date{Práctica final Metaheurísticas - Universidad de Granada}
 
@@ -18,15 +24,68 @@
 	\par
 	De esta situación surgió la idea de plantear una metaheurística basada en la ya comentada Silly Season, donde los pilotos serán individuos soluciones al problema que se organizarán en equipos o conjuntos que determinarán el trato que se le dará a cada individuo.
 	
-	\subsection{Resumen}
-	\indent El funcionamiento de esta metaheurística se basa en unos elementos bien definidos, las soluciones, que serán nuestros pilotos, se generarán y organizarán en equipos inicialmente de manera aleatoria, y se les asignará una puntuación a través de la función objetivo. Los equipos cuyos pilotos tengan mejor puntuación serán los que estén en la zona alta de la tabla y viceversa. Como los equipos de la parte alta tienen más dinero no pueden arriesgarse a cambios relevantes en su organización, por lo que generalmente se centrarán en mejorar al máximo el rendimiento de su coche(y por tanto el de su piloto). Por otra parte los equipos de la parte, puesto que no tienen nada que perder, tienden a realizar grandes cambios tanto en su organización como en su plantilla. Es decir, en los equipos con mayor puntuación los pilotos evolucionarán mediante explotación y los que tengan una puntuación más baja lo harán mediante exploración. Además, tras un cierto período(la temporada o época) los pilotos cambiarán de equipo según su rendimiento, aunque también habrá una posibilidad de que lo hagan entre temporadas si su rendimiento está desproporcionado con el de su equipo.
+	\subsection{Resumen en contexto}
+	\indent El funcionamiento de esta metaheurística se basa en unos elementos bien definidos, las soluciones, que serán nuestros pilotos, se generarán y organizarán en equipos inicialmente de manera aleatoria, y se les asignará una puntuación a través de la función objetivo. Los equipos cuyos pilotos tengan mejor puntuación serán los que estén en la zona alta de la tabla y viceversa. Como los equipos de la parte alta tienen más dinero no pueden arriesgarse a cambios relevantes en su organización, por lo que generalmente se centrarán en mejorar al máximo el rendimiento de su coche(y por tanto el de su piloto). Por otra parte los equipos de la parte, puesto que no tienen nada que perder, tienden a realizar grandes cambios tanto en su organización como en su plantilla. Es decir, en los equipos con mayor puntuación los pilotos evolucionarán mediante explotación y los que tengan una puntuación más baja lo harán mediante exploración. Además, tras un cierto período(la temporada o época) los pilotos cambiarán de equipo , aunque también habrá una posibilidad de que lo hagan entre temporadas.
 	\par
-	Este concepto se puede plantear como una buena metaheurística en la medida en la que se consigue equilibrar la exploración y la explotación, equilibrio que podría proporcionar una buena solución. Esto es porque intentaremos conseguir que las soluciones sean buenas mediante explotación en el caso de las que sean ya buenas en los que hemos definido como los mejores equipos y evitaremos óptimos locales mediante la exploración en el entorno de los peores equipos, ya que con ellos terminaremos consiguiendo soluciones potencialmente buenas.
+	Este concepto se puede plantear como una buena metaheurística en la medida en la que se consigue equilibrar la exploración y la explotación controlando cuantas iteraciones hacen cada una en proporción, equilibrio que podría proporcionar una buena solución. Esto es porque intentaremos conseguir que las soluciones sean buenas mediante explotación en el caso de las que sean ya buenas en los que hemos definido como los mejores equipos y evitaremos óptimos locales mediante la exploración en el entorno de los peores equipos, ya que con ellos terminaremos consiguiendo soluciones potencialmente buenas.
 	
 	\section {Descripción detallada}
 	\subsection{Concepto}
+	En este apartado se va a concretar el funcionamiento comentado en la sección anterior, apoyándose en el pseudocódigo de abajo.\par
+	\begin{algorithm}
+	\caption{Silly Season Algorithm}\label{sillyseason}
+	\begin{algorithmic}[1]
+	\Procedure{Silly Season}{$dataset,constraints,k$}
+		\For{$number\ of\ teams$}\Comment{Generate initial random solutions}
+			\For{$number\ of\ pilots\ per\ team$}
+				\State{$team.add(random\_solution)$}
+			\EndFor
+			\State{$teams.add(team)$}
+		\EndFor
+		\State $generate\ hierarchy\ vector$\Comment{Where $i$ value is the mean of $f$ values of team $i$}
+		\While{$eval \le max\_eval$}
+			\ForAll{team}
+				\If{$hierarchy[team] > f\_mean$}\Comment{Where $f\_mean$ is the f mean of all pilots}
+					\ForAll{$pilot$}
+						\State $LS(pilot,BL\_max)$\Comment{Local Search with $BL\_max$ maximum evaluations}
+					\EndFor
+				\Else
+					\ForAll{$pilot$}
+						\State $mutate(pilot,mutation\_prob)$\Comment{Mutation with $mutation\_prob$ probability}
+					\EndFor
+				\EndIf
+			\EndFor
+			\If{$current\ season\ has\ finished$}
+				\State $swap\ N\ pilots$
+			\Else
+				\State $swap\ M\ pilots$
+			\EndIf
+			\State $fix\ hierarchy$
+		\EndWhile
+		\State \textbf{return} $best\ solution$
+	\EndProcedure
+	\end{algorithmic}
+	\end{algorithm}
+	\newpage
+	Primero el algoritmo genera un conjunto de soluciones aleatorias de manera que formarán conjuntos, los equipos, que tendrán cada uno un número de soluciones, los pilotos, determinado. El número de equipos y el de pilotos por equipo serán dos parámetros a tener en cuenta en la solución.
+	\par
+	A partir de los equipos podemos formar un vector de jerarquía con la media para cada equipo de los valores dados por la función de coste a los pilotos. Entonces se les aplicará Búsqueda Local a los pilotos de los equipos que superen la media, los equipos grandes, y se mutará a los que pertenezcan a los equipos que tengan peor media, los equipos pequeños. Las evaluaciones máximas para BL y la probabilidad de mutación habrán de tenerse también en cuenta.
+	\par
+	Esto se hará en bucle y, para cada iteración, si se ha terminado la temporada se intercambiarán de equipo $N$ parejas de pilotos aleatoriamente, si no ha terminado lo harán $M$ parejas, siendo generalmente $M<N$. Por supuesto es necesario ajustar la jerarquía tras el intercambio.
+	\par
+	Al superar el número máximo de evaluaciones el algoritmo devolverá la mejor solución encontrada hasta el momento.
 	
-	\subsection{Implementación}
+	\subsection{Parámetros}
+	Del concepto final del algoritmo aparecen varios parámetros que han de usarse para controlar el equilibrio entre exploración y explotación, en concreto 8:
+	\begin{itemize}
+		\item Número de equipos: variar este parámetro resultará importante en gran medida para determinar el tamaño de la población y, por tanto, el tiempo de ejecución.
+		\item Número de pilotos por equipo: exactamente igual al anterior, ya que nuestra población final será el resultado de $n\_equipos\cdot n\_pilotos\_por\_equipo$.
+		\item Número máximo de evaluaciones para BL: este parámetro será primordial para determinar el número de evaluaciones que hará BL por iteración, lo que resulta importante para el equilibrio explotación-exploración.
+		\item Probabilidad de mutación: el caso opuesto al anterior para el equilibrio explotación-exploración. A mayor probabilidad más exploración existirá en proporción a la explotación.
+		\item Número de intercambios entre temporadas: determinará el número de intercambios durante la Silly Season, importante para la explotación.
+		\item Número de intercambios(por iteración) durante la temporada: mismo caso que el anterior para intercambios cuando una iteración no sea final de temporada.
+		\item Máximo número total de evaluaciones: Como en todas las metaheurísticas, para poder tener una referencia de su bondad respecto a otras.
+	\end{itemize}
 	
 	\section{Aplicación}
 	\subsection{Descripción del problema}
@@ -63,7 +122,7 @@
 	Primeramente podemos formalizar la definición de nuestro conjunto de datos como una matriz $X$ de
 	$n\cdot d$, $n$ objetos en un espacio de $d$ dimensiones(el número de medidas que tenemos sobre cada
 	objeto).\par
-	{\centering $\vec{x_i} =\{x_{i,1},...,x_{i,d}\}\ \| \ \in \mathbb R\ \forall j\in \{1,...,d\}$\par}
+	{\centering $\vec{x_i} =\{x_{i,1},...,x_{i,d}\}\ \vert \ x_{i,j}\in \mathbb R\ \forall j\in \{1,...,d\}$\par}
 	Llamaremos $C=\{c_1,...,c_k\}$ al conjunto de los $k$ clusters, de manera que cada $c_i$ será un subconjunto
 	de $X$ y podrá asociada una etiqueta $l_i$ que lo nombre Para cada cluster es posible calcular su
 	centroide asociado $\vec{\mu_i} $ , siendo el vector promedio de sus instancias.\par
@@ -112,8 +171,6 @@
 	Dicho ésto queda definir el parámetro $\lambda$, el cual se ha decidido proponer como el entero superior a
 	la distancia máxima $D$ dividida por el número de restricciones totales $R$.\par
 	{\centering $\lambda = \frac{\lceil D \rceil}{\abs{R}}$\par}
-	A continuación se expone la descripción en pseudocódigo de todos los operadores y de la función
-	objetivo.
 	
 	\subsection{Conjuntos de datos usados}
 	Los conjuntos de datos usados para testear la bondad de los algoritmos son los siguientes:
@@ -137,10 +194,99 @@
 	
 	\section{Análisis de rendimiento}
 	\subsection{Descripción de los casos del problema}
-	
+	Se van utilizar todos los conjuntos de datos anteriormente mencionados para analizar como de buenos son los algoritmos planteados para resolver el problema del agrupamiento con restricciones, con el 10 y el 20\% de restricciones en cada conjunto de datos. Los datos se organizan en tablas y se analizarán posteriormente. Para ello se quería realizar con cada uno de los cuatro conjuntos, Iris, Newthyroid, Ecoli y Rand,
+	tanto con el 10\% como con el 20\% de restricciones, un total de 5 veces, lo que hace un total de 40 ejecuciones(4 conjuntos x 2 conjuntos de restricciones x 5 veces). Sin embargo, como veremos, Ecoli resulta un problema en cuanto a tiempo de ejecución, por solo se ha podido obtener las soluciones con una semilla. Para poder replicar el total de ejecuciones todas ellas se han realizado utilizando semillas para la generación de números aleatorios, por lo que conociendo estas semillas se puede realizar el estudio exactamente de la misma manera y con los mismos resultados. Las semillas usadas en este estudio son las siguientes:\par
+	{\centering
+	\begin{tabular}{|c|c|c|c|c|}
+		\hline
+		Ejecución 1 & Ejecución 2 & Ejecución 3 & Ejecución 4 & Ejecución 5 \\
+		\hline
+		798245613 & 798245613 & 25022020 & 17042026 & 459268694 \\
+		\hline
+	\end{tabular}
+	\par}
 	\subsection{Resultados obtenidos}
-	
+	En las siguientes tablas se muestra el resultado de las pruebas anteriormente mencionadas a excepción de Ecoli, que como se verá requiere un tiempo de ejecución excesivamente alto y por tanto solo se ha realizado una ejecución para cada conjunto de restricciones, cuyo resultado es el que se añade a las últimas tablas para comparar datos. También es necesario recalcar que se han recogido los algoritmos más relevantes de cada práctica y que, tanto el algoritmo genético como el memético, no son los míos si no que son cedidos por Ángel de la Vega Jiménez para poder hacer la comparación ya que mi práctica 2 tiene varios problemas que no he tenido tiempo de solucionar y que no son objetivo de esta práctica.
+	{\centering
+	\begin{table}[]
+		\resizebox{15cm}{!}{
+		\begin{tabular}{lllllllllllll}
+			\multirow{2}{*}{SSA 10\%} & \multicolumn{4}{l}{\textbf{Iris}}                                                             & \multicolumn{4}{l}{\textbf{Newthyroid}}                                                       & \multicolumn{4}{l}{\textbf{Rand}}                                                             \\
+			& \textit{\textbf{Tasa\_C}} & \textit{\textbf{Tasa\_inf}} & \textit{\textbf{Agr.}} & \textbf{T} & \textit{\textbf{Tasa\_C}} & \textit{\textbf{Tasa\_inf}} & \textit{\textbf{Agr.}} & \textbf{T} & \textit{\textbf{Tasa\_C}} & \textit{\textbf{Tasa\_inf}} & \textit{\textbf{Agr.}} & \textbf{T} \\
+			\textbf{Ej 1}      & 0,669                     & 0                           & 0,669                  & 12,219     & 10,82                     & 109                         & 12,64                  & 65,86      & 0,716                     & 0                           & 0,716                  & 16,719     \\
+			\textbf{Ej 2}      & 0,669                     & 0                           & 0,669                  & 36,688     & 10,84                     & 109                         & 12,66                  & 125,83     & 0,716                     & 0                           & 0,716                  & 28,906     \\
+			\textbf{Ej 3}      & 0,669                     & 0                           & 0,669                  & 16,484     & 10,88                     & 100                         & 12,55                  & 65,94      & 0,716                     & 0                           & 0,716                  & 18,969     \\
+			\textbf{Ej 4}      & 0,669                     & 0                           & 0,669                  & 18,609     & 10,82                     & 109                         & 12,64                  & 99,11      & 0,716                     & 0                           & 0,716                  & 15,938     \\
+			\textbf{Ej 5}      & 0,669                     & 0                           & 0,669                  & 14,594     & 10,88                     & 97                          & 12,50                  & 92,88      & 0,716                     & 0                           & 0,716                  & 19,250     \\
+			\textbf{Media}            & 0,669                     & 0,0                         & 0,669                  & 19,719     & 10,847                    & 104,8                       & 12,597                 & 89,922     & 0,716                     & 0,0                         & 0,716                  & 19,956    
+		\end{tabular}}
+	\end{table}}
+
+	{\centering
+	\begin{table}[]
+		\resizebox{15cm}{!}{
+		\begin{tabular}{lllllllllllll}
+			\multirow{2}{*}{SSA 20\%} & \multicolumn{4}{l}{\textbf{Iris}}                                                             & \multicolumn{4}{l}{\textbf{Newthyroid}}                                                       & \multicolumn{4}{l}{\textbf{Rand}}                                                             \\
+			& \textit{\textbf{Tasa\_C}} & \textit{\textbf{Tasa\_inf}} & \textit{\textbf{Agr.}} & \textbf{T} & \textit{\textbf{Tasa\_C}} & \textit{\textbf{Tasa\_inf}} & \textit{\textbf{Agr.}} & \textbf{T} & \textit{\textbf{Tasa\_C}} & \textit{\textbf{Tasa\_inf}} & \textit{\textbf{Agr.}} & \textbf{T} \\
+			\textbf{Ej 1}      & 0,669                     & 0                           & 0,669                  & 17,141     & 10,72                     & 309                         & 13,42                  & 59,78      & 0,716                     & 0                           & 0,716                  & 14,328     \\
+			\textbf{Ej 2}      & 0,669                     & 0                           & 0,669                  & 32,297     & 13,55                     & 41                          & 13,91                  & 117,53     & 0,716                     & 0                           & 0,716                  & 10,406     \\
+			\textbf{Ej 3}      & 0,669                     & 0                           & 0,669                  & 17,688     & 10,74                     & 329                         & 13,61                  & 73,94      & 0,716                     & 0                           & 0,716                  & 16,000     \\
+			\textbf{Ej 4}      & 0,669                     & 0                           & 0,669                  & 13,109     & 10,83                     & 255                         & 13,05                  & 88,23      & 0,716                     & 0                           & 0,716                  & 14,422     \\
+			\textbf{Ej 5}      & 0,669                     & 0                           & 0,669                  & 14,594     & 10,88                     & 293                         & 13,43                  & 79,98      & 0,716                     & 0                           & 0,716                  & 15,047     \\
+			\textbf{Media}            & 0,669                     & 0,0                         & 0,669                  & 18,966     & 11,344                    & 245,4                       & 13,484                 & 83,894     & 0,716                     & 0,0                         & 0,716                  & 14,041    
+		\end{tabular}}
+	\end{table}}
+
+	\begin{figure}[H]
+		\includegraphics[width=\linewidth]{imagenes/tabla10.png}
+		\label{fig:boat1}
+	\end{figure}
+
+	\begin{figure}[H]
+		\includegraphics[width=\linewidth]{imagenes/tabla20.png}
+		\label{fig:boat2}
+	\end{figure}
+
+	En cuanto a los parámetros se han decidido usar 5 equipos de 2 pilotos cada, con temporadas de 10000 evaluaciones en las que se hace 1 intercambio de pilotos a cada iteración durante la temporada y 4 cuando esta acaba. Las iteraciones máximas para BL se han establecido en 1000 y la probabilidad de mutación en una mutación por cada 1050 "genes"; siendo todos estos parámetros regulados en función de pruebas en las que se buscaba un buen equilibro explotación-exploración, objetivo de cualquier metaheurística. Para poder compararla con el resto de algoritmos se ha establecido el número máximo de evaluaciones en 100000.
+
 	\subsection{Análisis de resultados}
 	
-	\subsection{Posibles mejoras}
+	A partir de los resultados obtenidos podemos sacar varias conclusiones. La primera, que se puede ver en los gráficos de 10 y 20\% de restricciones, es que SSA(Silly Season Algorithm) es bastante competente, en concreto para Newthyroid encuentra soluciones muy cercanas a las mejores para el resto de algoritmos y para Ecoli(para las única prueba que ha podido realizarse), sorprendentemente solo es peor que Enfriamiento Simulado, AGE y Memético. No tiene sentido hablar de Iris y Rand ya que salvo algunas excepciones sin importancia para todos los casos se optiene el óptimo. Como ya se ha hablado en prácticas, a partir de los resultados obtenidos se puede deducir que en ese equilibrio explotación-exploración ya comentado Newthyroid obtiene mejores resultados fomentando la explotación, mientras que Ecoli suele funcionar mejor con un enfoque explorativa, aunque cuando realmente se consigue un buen resultado es con un equilibrio lo más óptimo posible como podemos ver en los resultados obtenidos por ES. A la vista de esto, vemos que SSA es capaz de obtener buenos resultados en ambos casos, acercándose aunque quedándose atrás de ES, que se perfila como el mejor algoritmo utilizado hasta el momento, y devolviendo mejores resultados que algoritmos ya buenos de por sí como ILS. También se puede ver una clara coincidencia con los Algoritmos Meméticos, lo cual es lógico ya que el funcionamiento es muy parecido con la salvedad de que en AM se aplican cruces y BL a toda la población, mientras que en SSA no se aplican cruces, solo mutaciones, y se usan ambas técnicas de manera disjunta.
+	
+	\begin{figure}[H]
+		\includegraphics[width=\linewidth]{imagenes/f_10.png}
+		\label{fig:boat3}
+	\end{figure}
+
+	\begin{figure}[H]
+		\includegraphics[width=\linewidth]{imagenes/f_20.png}
+		\label{fig:boat4}
+	\end{figure}
+	\newpage
+	No obstante, pese a los buenos resultados, encontramos una pega muy importante al uso de SSA. Como vemos en el gráfico de tiempos, el coste computacional de esta técnica es desproporcionadamente superior al del resto de algoritmos usados, encontrando el caso límite en el que estos consumen en torno a 5 segundos para Ecoli, mientras que SSA se demora en torno a 1 hora y 20 minutos. En otros casos no es un problema tan acusado, por ejemplo en Iris tarda unos 20 segundos y en Newthyroid ronda el minuto, pero estamos hablando de conjuntos no demasiado complejos y un número de evaluaciones relativamente bajo, por lo que el algoritmo, a falta de optimización en tiempo, no puede ser considerado como una buena alternativa a cualquiera del resto de algoritmos tan solo por este hecho, no es viable en cuestiones de coste computacional.
+
+	\begin{figure}[H]
+		\includegraphics[width=\linewidth]{imagenes/time.png}
+		\label{fig:boat5}
+	\end{figure}
+	
+	\subsection{Mejoras durante el desarrollo}
+	A continuación se hará una breve descripción de las mejoras realizadas sobre la idea original de la metaheurística.
+	\begin{itemize}
+		\item Matriz f: Inicialmente los valores f de cada piloto se guardaban en una matriz para ahorrar evaluaciones, sin embargo se llegó a una versión que, eliminando esta matriz, ahorra incluso más evaluaciones.
+		\item Optimización en cambio de equipo: El intercambio de pilotos entre equipos tenía el planteamiento de que los mejores vayan a los mejores equipos y viceversa, pero finalmente se ha optado por una solución que debería ser mejor y más simple, y es que cambien aleatoriamente. Con ello se gana en exploración y la implementación de esta parte pasa a ser mucho más sencilla.
+		\item Pequeñas optimizaciones: Desde la idea original se han hecho pequeños cambios sin importancia para ahorrar algo de coste.
+	\end{itemize}
+	\newpage
+	\subsection{Posibles futuras mejoras}
+	Como última medida se van a comentar posibles mejoras sobre la metaheurística que no se han podido abordar en este proyecto por temas de tiempo.
+	\begin{itemize}
+		\item BL suave: Siguiendo el ejemplo de los Algoritmos Meméticos es probable que llegue a funcionar mejor usando una BL suave, siendo también menos costosa.
+		\item Más optimización en tiempo: Es obvio que si se busca que este algoritmo sea competente es necesario mejorar el tiempo de ejecución en gran medida, lo cual requiere un estudio en conciencia de las partes más costosas y sus posibles mejoras.
+		\item Integración de jerarquía en BL: Como pequeña medida, es posible integrar el ajuste de la jerarquía dentro de la modificación de los pilotos, ahorrando evaluaciones en el proceso. No es demasiado relevante ya que no parece estar falta de exploración por ese motivo, pero sí que es posible llevarla a cabo.
+	\end{itemize}
+
+	\subsection{Conclusión}
+	Podemos concluir por tanto en que se ha llegado a un algoritmo con unos resultados muy competentes, pero que no es viable atendiendo a su tiempo de ejecución. Si se consiguiera optimizar este último sin sacrificar potencia de cálculo sí que tendríamos una metaheurística que podría competir con las ya estudiadas, aunque a pesar de ello, sin un estudio más concienzudo, no se puede saber con certeza si ésto es posible y de donde proviene el gran coste en tiempo de esta técnica.
+	
 \end{document}

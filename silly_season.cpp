@@ -205,7 +205,6 @@ void silly_season(vector<vector<float>> *cl_set, vector<vector<int>> *cl_set_con
     float current_f;                // Current f value
     int current_inf;                // Current infeasibility
     float current_dev;              // Current standard deviation
-    vector<vector<float>> f_matrix; // Each team f value
     vector<float> team_hierarchy;   // Team hierarchy representation
     float mean_f;                   // Cut-off point
 
@@ -273,10 +272,13 @@ void silly_season(vector<vector<float>> *cl_set, vector<vector<int>> *cl_set_con
     best_f = calculate_f(cl_set, teams[0][0], const_list, k, lambda, &best_dev, &best_inf);
     n_iters++;
 
-    f_matrix.clear();
+    // Initialize teams hierarchy
+
+    mean_f = 0;
+    team_hierarchy.clear();
     for (int i = 0; i < n_teams; i++)
     {
-        cf.clear();
+        i_aux = 0;
         for (int j = 0; j < n_pilot_per_team; j++)
         {
             current_f = calculate_f(cl_set, teams[i][j], const_list, k, lambda, &current_dev, &current_inf);
@@ -287,22 +289,8 @@ void silly_season(vector<vector<float>> *cl_set, vector<vector<int>> *cl_set_con
                 best_inf = current_inf;
                 best_dev = current_dev;
             }
-            cf.push_back(current_f);
-        }
-        f_matrix.push_back(cf);
-    }
-
-    // Initialize teams hierarchy
-
-    mean_f = 0;
-    team_hierarchy.clear();
-    for (int i = 0; i < n_teams; i++)
-    {
-        i_aux = 0;
-        for (int j = 0; j < n_pilot_per_team; j++)
-        {
-            i_aux += f_matrix[i][j];
-            mean_f += f_matrix[i][j];
+            i_aux += current_f;
+            mean_f += current_f;
         }
         team_hierarchy.push_back(i_aux / n_pilot_per_team);
     }
@@ -396,13 +384,13 @@ void silly_season(vector<vector<float>> *cl_set, vector<vector<int>> *cl_set_con
 
         last_season = current_season;
 
-        // Fix best values and f-matrix
-        // Se puede intentar introducir en train para optimizar
+        // Fix teams hierarchy and best values
 
-        f_matrix.clear();
+        mean_f = 0;
+        team_hierarchy.clear();
         for (int i = 0; i < n_teams; i++)
         {
-            cf.clear();
+            i_aux = 0;
             for (int j = 0; j < n_pilot_per_team; j++)
             {
                 current_f = calculate_f(cl_set, teams[i][j], const_list, k, lambda, &current_dev, &current_inf);
@@ -413,22 +401,8 @@ void silly_season(vector<vector<float>> *cl_set, vector<vector<int>> *cl_set_con
                     best_inf = current_inf;
                     best_dev = current_dev;
                 }
-                cf.push_back(current_f);
-            }
-            f_matrix.push_back(cf);
-        }
-
-        // Fix teams hierarchy
-
-        mean_f = 0;
-        team_hierarchy.clear();
-        for (int i = 0; i < n_teams; i++)
-        {
-            i_aux = 0;
-            for (int j = 0; j < n_pilot_per_team; j++)
-            {
-                i_aux += f_matrix[i][j];
-                mean_f += f_matrix[i][j];
+                i_aux += current_f;
+                mean_f += current_f;
             }
             team_hierarchy.push_back(i_aux / n_pilot_per_team);
         }
